@@ -236,6 +236,3 @@ excel_data = convert_df_to_excel(export_df)
 st.download_button("Download Returns as Excel", excel_data, "aia_fund_returns.xlsx",
                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# Export PDF
-pdf_data = pio.to_image(fig, format="pdf")
-st.download_button("Download Chart as PDF", pdf_data, "aia_fund_performance.pdf","application/pdf")
