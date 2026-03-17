@@ -100,6 +100,12 @@ st.session_state.end_date = end_date
 
 
 prices = prices.loc[start_date:end_date]
+
+# --- SAFETY CHECK: Stop if no data ---
+if prices.empty:
+    st.error("❌ No price data available for the selected funds/dates.")
+    st.stop()  # Prevent further code from running
+    
 returns = compute_cumulative_return(prices)
 
 # --- Risk metrics ---
