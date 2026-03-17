@@ -1,7 +1,7 @@
 import streamlit as st
 
 # --- PASSWORD PROTECTION ---
-password = "breadnocrumbs0"
+password = "Qwerty96!@"
 
 if "password_correct" not in st.session_state:
     st.session_state.password_correct = False
@@ -22,7 +22,7 @@ import pandas as pd
 import yfinance as yf
 import plotly.graph_objects as go
 from config import FUND_MAPPING, DEFAULT_BENCHMARK, START_DATE
-from data import load_price_data, compute_cumulative_return
+from data import load_price_data, compute_cumulative_return, compute_trailing_return
 import io
 import plotly.io as pio
 
@@ -40,7 +40,7 @@ if "end_date" not in st.session_state:
     st.session_state.end_date = pd.to_datetime("today")
 
 
-st.set_page_config(page_title="AIA Fund Dashboard", layout="wide")
+st.set_page_config(page_title="Historial Data", layout="wide")
 
 TABLEAU_COLORS = ["#4E79A7","#F28E2B","#E15759","#76B7B2","#59A14F","#EDC948","#B07AA1","#FF9DA7","#9C755F","#BAB0AC"]
 TABLEAU_FONT = "Tableau Regular, Arial, sans-serif"
@@ -52,7 +52,7 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("AIA Fund Portfolio and Benchmark Index")
+st.title("Historical Data")
 st.sidebar.header("Filters")
 
 fund_names = list(FUND_MAPPING.keys())
@@ -149,10 +149,6 @@ st.sidebar.markdown(
     unsafe_allow_html=True
 )
 
-
-symbols = {name:FUND_MAPPING[name] for name in selected_funds + [benchmark]}
-prices = load_price_data(list(set(symbols.values())), START_DATE)
-
 end_date = prices.index.max()
 prices = prices.loc[start_date:end_date]
 returns = compute_cumulative_return(prices)
@@ -165,13 +161,13 @@ for i, (name, symbol) in enumerate(symbols.items()):
     y_data = returns[symbol]
 
     # Find index of max and min
-    max_idx = y_data.idxmax()
-    min_idx = y_data.idxmin()
+    max_pos = y_data.values.argmax()
+    min_pos = y_data.values.argmin()
 
     # Create a list of labels (empty by default)
     labels = [""] * len(y_data)
-    labels[y_data.index.get_loc(max_idx)] = f"High: {y_data[max_idx]:.1f}%"
-    labels[y_data.index.get_loc(min_idx)] = f"Low: {y_data[min_idx]:.1f}%"
+    labels[max_pos] = f"High: {y_data.iloc[max_pos]:.1f}%"
+    labels[min_pos] = f"Low: {y_data.iloc[min_pos]:.1f}%"
 
     # Add the line trace
     fig.add_trace(
@@ -209,30 +205,101 @@ fig.update_layout(title=f"Performance from {start_date.date()} to {end_date.date
 
 st.plotly_chart(fig, use_container_width=True)
 
-# --- Risk table goes here ---
-st.subheader("Risk & Return Metrics")
-st.dataframe(risk_df, use_container_width=True)
+# --- Two-column layout ---
+left_col, right_col = st.columns([1, 2])  # left narrower, right wider
 
-st.subheader("Performance Summary")
-cols = st.columns(len(symbols))
-for col,(name,symbol) in zip(cols,symbols.items()):
-    total_return = returns[symbol].iloc[-1]
-    with col: st.metric(label=name,value=f"{total_return:.2f}%")
+# ---------------- LEFT COLUMN ----------------
+with left_col:
+    st.subheader("Risk & Return Metrics")
+    
+    # Display each fund as a colored mini card
+    for _, row in risk_df.iterrows():
+        fund = row["Fund"]
+        total_return = row["Total Return (%)"]
+        volatility = row["Volatility (%)"]
+        ratio = row["Return / Risk"]
+        
+        # Color based on performance
+        bg_color = "#2E7D32" if total_return >= 0 else "#C62828"  # green/red
+        text_color = "white"
+        
+        st.markdown(f"""
+        <div style="
+            background-color:{bg_color};
+            color:{text_color};
+            padding:10px;
+            border-radius:8px;
+            margin-bottom:5px;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+            font-size:14px;
+        ">
+            <b>{fund}</b><br>
+            Total Return: {total_return}%<br>
+            Volatility: {volatility}%<br>
+            Return/Risk: {ratio}
+        </div>
+        """, unsafe_allow_html=True)
 
-st.markdown("---")
+# ---------------- RIGHT COLUMN ----------------
+with right_col:
+    st.subheader("Historical Data")
+    
+    # Currency mapping
+    FUND_CURRENCY = {
+        "AIA US Equity": "USD",
+        "Apple Inc": "USD",
+        "AIA Singapore Bond Index": "SGD",
+        "AIA Acorns of Asia": "SGD",
+        # Add other funds as needed
+    }
 
-# Export Excel
-def convert_df_to_excel(df): 
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        df.to_excel(writer, sheet_name="Returns")
-    return output.getvalue()
+    # Price table (columns are symbols)
+    price_table = prices[list(symbols.values())].copy()
+    
+    # Forward-fill missing prices to avoid blanks
+    price_table.fillna(method="ffill", inplace=True)
 
-export_df = returns[list(symbols.values())].copy()
-export_df.index = export_df.index.strftime("%Y-%m-%d")
-export_df.columns = list(symbols.keys())
-excel_data = convert_df_to_excel(export_df)
+    # Format columns with currency
+    new_price_columns = []
+    for name, symbol in symbols.items():
+        currency = FUND_CURRENCY.get(name, "$")
+        new_name = f"{name} ({currency})"
+        new_price_columns.append(new_name)
+        price_table[symbol] = price_table[symbol].apply(
+            lambda x: f"${x:,.2f}" if currency in ["USD","SGD"] else f"{x:,.2f}"
+        )
+    price_table.columns = new_price_columns
 
-st.download_button("Download Returns as Excel", excel_data, "aia_fund_returns.xlsx",
-                   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    # Cumulative returns
+    return_table = returns[list(symbols.values())].copy()
+    return_table.fillna(method="ffill", inplace=True)
+    return_table.columns = [f"{name} Return (%)" for name in symbols.keys()]
+    return_table = return_table.round(2)
+    for col in return_table.columns:
+        return_table[col] = return_table[col].apply(lambda x: f"{x:.2f}%")
 
+    # Combine price + returns
+    combined_table = pd.concat([price_table, return_table], axis=1)
+    combined_table.index = combined_table.index.strftime("%Y-%m-%d")
+
+    # --- Dark theme styling ---
+    st.dataframe(
+        combined_table.style
+        .set_properties(**{
+            "text-align": "right",
+            "font-family": "Arial, sans-serif",
+            "font-size": "13px",
+            "color": "white",                 # text color
+            "background-color": "#1E1E1E"     # dark background
+        })
+        .set_table_styles([{
+            "selector": "th",
+            "props": [
+                ("text-align", "center"),
+                ("background-color", "#2E2E2E"),
+                ("color", "white"),
+                ("font-weight", "bold")
+            ]
+        }])
+        .apply(lambda x: ["background-color: #2A2A2A" if i%2==0 else "#background-color: #1E1E1E" for i in range(len(x))], axis=0)
+    , use_container_width=True)
