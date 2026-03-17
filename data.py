@@ -19,3 +19,12 @@ def load_price_data(symbols, start_date):
 
 def compute_cumulative_return(prices: pd.DataFrame) -> pd.DataFrame:
     return (prices / prices.iloc[0] - 1) * 100
+
+def compute_trailing_return(prices: pd.Series, trading_days: int = 252):
+    """
+    Compute trailing return over the last 'trading_days' trading days.
+    252 ≈ 1 year of trading days
+    """
+    if len(prices) < trading_days:
+        return None
+    return (prices.iloc[-1] / prices.iloc[-trading_days] - 1) * 100
