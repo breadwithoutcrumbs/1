@@ -1,5 +1,4 @@
 FUND_MAPPING = {
-    "ABF Singapore Bond Index": "A35.SI",
     "AIA Acorns of Asia": "0P00008SWX.SI",
     "AIA Elite Adventurous SGD": "0P0001I6KI.SI",
     "AIA Elite Balanced SGD": "0P0001I6KK.SI",
@@ -33,10 +32,10 @@ FUND_MAPPING = {
     "AIA Regional Fixed Income": "0P00008T6N.SI",
     "AIA S$ Money Market": "0P00008T6T.SI",
     "AIA Shariah Global Diversified": "0P0001P02E.SI",
-    "AIA Sustainable Multi Thematic": "0P0001PVLR",
+    "AIA Sustainable Multi Thematic": "0P00009PN7.SI",
     "AIA US Equity": "0P00008T6U.SI",
 
-    # Indices / Assets
+    # Others
     "S&P 500 Index": "^GSPC",
     "AEX": "^AEX",
     "ATX": "^ATX",
@@ -45,14 +44,79 @@ FUND_MAPPING = {
     "Bovespa": "^BVSP",
     "BSE Sensex 30": "^BSESN",
     "Budapest SE": "^BUX",
-
-    # Stocks / Crypto
     "Apple Inc": "AAPL",
     "ARK Innovation": "ARKK",
     "Bank of America": "BAC",
     "Berkshire Hathaway A": "BRK-A",
     "Bitcoin": "BTC-USD",
     "ASML Holding ADR": "ASML"
+}
+
+ASSET_CLASS = {
+    # EQUITY
+    "AIA Acorns of Asia": "equity",
+    "AIA Elite Adventurous SGD": "equity",
+    "AIA Emerging Markets Equity": "equity",
+    "AIA European Equity": "equity",
+    "AIA Global Equity": "equity",
+    "AIA Global Technology Fund": "equity",
+    "AIA Greater China Equity": "equity",
+    "AIA Growth": "equity",
+    "AIA India Equity": "equity",
+    "AIA India Opportunities": "equity",
+    "AIA International Health Care": "equity",
+    "AIA Japan Equity": "equity",
+    "AIA Regional Equity": "equity",
+    "AIA US Equity": "equity",
+    "AIA Shariah Global Diversified": "equity",
+    "AIA Sustainable Multi Thematic": "equity",
+
+    # MULTI-ASSET
+    "AIA Elite Balanced SGD": "multi_asset",
+    "AIA Elite Conservative SGD": "multi_asset",
+    "AIA Emerging Markets Balanced": "multi_asset",
+    "AIA Global Balanced": "multi_asset",
+    "AIA Greater China Balanced": "multi_asset",
+    "AIA India Balanced": "multi_asset",
+    "AIA Japan Balanced": "multi_asset",
+    "AIA Multi Select 50": "multi_asset",
+    "AIA Multi Select 70": "multi_asset",
+    "AIA Portfolio 30": "multi_asset",
+    "AIA Portfolio 50": "multi_asset",
+    "AIA Portfolio 70": "multi_asset",
+    "AIA Portfolio 100": "multi_asset",
+    "AIA Global Adventurous Income": "multi_asset",
+    "AIA Global Dynamic Income": "multi_asset",
+
+    # BOND
+    "AIA Global Bond": "bond",
+    "AIA Regional Fixed Income": "bond",
+
+    # CASH
+    "AIA S$ Money Market": "cash",
+
+    # ALTERNATIVES
+    "AIA Global Property Returns": "alternatives",
+
+    # INDEX
+    "S&P 500 Index": "index",
+    "AEX": "index",
+    "ATX": "index",
+    "BEL 20": "index",
+    "BIST 100": "index",
+    "Bovespa": "index",
+    "BSE Sensex 30": "index",
+    "Budapest SE": "index",
+
+    # STOCKS / OTHERS
+    "Apple Inc": "equity",
+    "Bank of America": "equity",
+    "ARK Innovation": "equity",
+    "Berkshire Hathaway A": "equity",
+    "ASML Holding ADR": "equity",
+
+    # CRYPTO
+    "Bitcoin": "crypto"
 }
 
 DEFAULT_BENCHMARK = "AIA US Equity"
