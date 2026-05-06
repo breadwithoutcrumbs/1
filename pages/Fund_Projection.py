@@ -84,9 +84,33 @@ with st.sidebar.expander("Non-AIA Fees", expanded=False):
     ) / 100
 
 # -------------------- ADVANCED --------------------
+manual_cagr_settings = {}
+
 with st.sidebar.expander("Advanced", expanded=False):
 
-    use_cagr_override = st.checkbox("Override CAGR Manually")
+    st.subheader("CAGR Overrides")
+
+    for fund in selected_funds:
+
+        use_manual = st.checkbox(
+            f"Use another CAGR for {fund}",
+            key=f"use_manual_{fund}"
+        )
+
+        manual_value = None
+
+        if use_manual:
+            manual_value = st.number_input(
+                f"Manual CAGR (%) - {fund}",
+                value=5.0,
+                step=0.01,
+                key=f"cagr_{fund}"
+            ) / 100
+
+        manual_cagr_settings[fund] = {
+            "enabled": use_manual,
+            "value": manual_value
+        }
 
 # -------------------- LOAD DATA --------------------
 symbols = [FUND_MAPPING[fund] for fund in selected_funds]
@@ -138,18 +162,10 @@ for selected_fund in selected_funds:
     years_of_data = (fund_prices.index[-1] - fund_prices.index[0]).days / 365.25
     historical_cagr = (end_price / start_price) ** (1 / years_of_data) - 1
 
-    use_manual = st.sidebar.checkbox(
-        f"Use another CAGR for {selected_fund}",
-        key=f"use_manual_{selected_fund}"
-    )
+    manual_setting = manual_cagr_settings.get(selected_fund)
 
-    if use_manual:
-        cagr = st.sidebar.number_input(
-            f"Manual CAGR (%) - {selected_fund}",
-            value=historical_cagr * 100,
-            step=0.01,
-            key=f"cagr_{selected_fund}"
-        ) / 100
+    if manual_setting and manual_setting["enabled"]:
+        cagr = manual_setting["value"]
     else:
         cagr = historical_cagr
 
