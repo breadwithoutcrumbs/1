@@ -18,7 +18,23 @@ def load_price_data(symbols, start_date):
     return df
 
 def compute_cumulative_return(prices: pd.DataFrame) -> pd.DataFrame:
-    return (prices / prices.iloc[0] - 1) * 100
+    # Forward fill missing values
+    prices = prices.ffill()
+
+    # Use first valid value per column (NOT first row)
+    first_valid = prices.apply(
+        lambda col: col.dropna().iloc[0] if col.dropna().any() else None
+    )
+
+    returns = pd.DataFrame(index=prices.index)
+
+    for col in prices.columns:
+        if first_valid[col] is not None:
+            returns[col] = (prices[col] / first_valid[col] - 1) * 100
+        else:
+            returns[col] = None
+
+    return returns
 
 def compute_trailing_return(prices: pd.Series, trading_days: int = 252):
     """
