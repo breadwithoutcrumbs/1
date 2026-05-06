@@ -1,28 +1,15 @@
 import streamlit as st
 
 # --- PASSWORD PROTECTION ---
-password = "Qwerty96!@"
-
-if "password_correct" not in st.session_state:
-    st.session_state.password_correct = False
-
-# Only show password input if not yet correct
-if not st.session_state.password_correct:
-    user_input = st.text_input("Enter password to access the dashboard:", type="password")
-
-    if user_input == password:
-        st.session_state.password_correct = True  # Mark password as correct
-        st.success("✅ Password correct! Loading dashboard...")
-    else:
-        if user_input:  # Only show warning if user typed something
-            st.warning("🔒 Incorrect password.")
-        st.stop()  # Stop the rest of the dashboard from rendering
+from auth import check_password
+check_password()
 
 import pandas as pd
 import yfinance as yf
 import plotly.graph_objects as go
-from config import FUND_MAPPING, DEFAULT_BENCHMARK, START_DATE
+from config import FUND_MAPPING, DEFAULT_BENCHMARK, START_DATE, ASSET_CLASS
 from data import load_price_data, compute_cumulative_return, compute_trailing_return
+from fund_history_store import get_historical_prices, get_inception_date
 import io
 import plotly.io as pio
 
@@ -40,7 +27,7 @@ if "end_date" not in st.session_state:
     st.session_state.end_date = pd.to_datetime("today")
 
 
-st.set_page_config(page_title="Historial Data", layout="wide")
+st.set_page_config(page_title="Historical Data", layout="wide")
 
 TABLEAU_COLORS = ["#4E79A7","#F28E2B","#E15759","#76B7B2","#59A14F","#EDC948","#B07AA1","#FF9DA7","#9C755F","#BAB0AC"]
 TABLEAU_FONT = "Tableau Regular, Arial, sans-serif"
@@ -56,13 +43,41 @@ st.title("Historical Data")
 st.sidebar.header("Filters")
 
 fund_names = list(FUND_MAPPING.keys())
-selected_funds = st.sidebar.multiselect("Select Funds", fund_names, default=st.session_state.selected_funds)
-benchmark = st.sidebar.selectbox("Select Benchmark", fund_names, index=fund_names.index(st.session_state.benchmark))
+selected_funds = st.sidebar.multiselect(
+    "Select Funds",
+    fund_names,
+    default=st.session_state.get("selected_funds", []),
+    key="fund_selector"
+)
+benchmark = st.sidebar.selectbox(
+    "Select Benchmark",
+    fund_names,
+    index=fund_names.index(st.session_state.get("benchmark", DEFAULT_BENCHMARK)),
+    key="benchmark_selector"
+)
+
+# Combine safely (NO duplicates)
+all_selected = list(set(selected_funds + [benchmark]))
+symbols = {name: FUND_MAPPING[name] for name in all_selected}
 symbols = {name:FUND_MAPPING[name] for name in selected_funds + [benchmark]}
 prices = load_price_data(list(set(symbols.values())), START_DATE)
+
 # --- Time controls ---
 min_date = pd.to_datetime(START_DATE)
 max_date = prices.index.max()
+
+
+hist_df = get_historical_prices()
+prices = pd.concat([hist_df, prices], axis=0)
+prices = prices[~prices.index.duplicated(keep="first")]
+prices = prices.sort_index()
+
+# --- FILTER BY INCEPTION DATE PER FUND ---
+for name, symbol in symbols.items():
+    inception = get_inception_date(symbol)
+    if inception:
+        inception = pd.to_datetime(inception)
+        prices.loc[prices.index < inception, symbol] = pd.NA
 
 years = st.sidebar.slider("Invested Time Window (Years)", 1, 15, 11)
 
@@ -99,23 +114,42 @@ st.session_state.start_date = start_date
 st.session_state.end_date = end_date
 
 
-prices = prices.loc[start_date:end_date]
+prices = prices.loc[start_date:end_date].copy()
+
+equity_cols = [
+    col for col in prices.columns
+    if ASSET_CLASS.get(
+        [k for k, v in FUND_MAPPING.items() if v == col][0],
+        "equity"
+    ) == "equity"
+]
+prices[equity_cols] = prices[equity_cols].ffill()
+
 
 # --- SAFETY CHECK: Stop if no data ---
 if prices.empty:
     st.error("❌ No price data available for the selected funds/dates.")
     st.stop()  # Prevent further code from running
     
-returns = compute_cumulative_return(prices)
+base_price = prices.apply(
+    lambda col: col.dropna().iloc[0] if col.dropna().shape[0] > 0 else None
+)
+
+returns = prices.divide(base_price) - 1
+returns = returns * 100
 
 # --- Risk metrics ---
-daily_returns = prices.pct_change().dropna()
+daily_returns = prices.pct_change()
 
 risk_table = []
 for name, symbol in symbols.items():
     total_return = returns[symbol].iloc[-1]
-    volatility = daily_returns[symbol].std() * (252 ** 0.5) * 100
-    ratio = total_return / volatility if volatility != 0 else 0
+    col_returns = daily_returns[symbol].dropna()
+    if len(col_returns) > 1:
+        volatility = col_returns.std() * (252 ** 0.5) * 100
+    else:
+        volatility = float("nan")
+    ratio = total_return / volatility if pd.notna(volatility) and volatility != 0 else float("nan")
 
     risk_table.append({
         "Fund": name,
@@ -126,7 +160,10 @@ for name, symbol in symbols.items():
 
 risk_df = pd.DataFrame(risk_table).sort_values("Return / Risk", ascending=False)
 
-# --- Sidebar Quick Stats ---
+# =========================
+# SIDE BAR QUICK STATS
+# =========================
+
 st.sidebar.markdown("### 📊 Quick Stats")
 
 top3 = risk_df.head(3)
@@ -157,9 +194,44 @@ st.sidebar.markdown(
 
 end_date = prices.index.max()
 prices = prices.loc[start_date:end_date]
-returns = compute_cumulative_return(prices)
 
-# Create figure
+# =========================
+# PRICE LEVEL CHART
+# =========================
+
+price_fig = go.Figure()
+
+for i, (name, symbol) in enumerate(symbols.items()):
+    color = TABLEAU_COLORS[i % len(TABLEAU_COLORS)]
+
+    price_fig.add_trace(
+        go.Scatter(
+            x=prices.index,
+            y=prices[symbol],
+            mode="lines",
+            name=name,
+            line=dict(color=color, width=2),
+            hovertemplate=f"<b>{name}</b><br>Price: %{{y:.2f}}<extra></extra>"
+        )
+    )
+
+price_fig.update_layout(
+    title="Fund Price Levels Over Time",
+    xaxis_title="Date",
+    yaxis_title="Price",
+    hovermode="x unified",
+    legend=dict(orientation="h", y=-0.25),
+    template="plotly_white",
+    font=dict(family=TABLEAU_FONT, size=14),
+    margin=dict(t=80, b=100)
+)
+
+st.plotly_chart(price_fig, use_container_width=True)
+
+# =========================
+# PERCENTAGE LEVEL CHART
+# =========================
+
 fig = go.Figure()
 
 for i, (name, symbol) in enumerate(symbols.items()):
@@ -261,20 +333,32 @@ with right_col:
 
     # Price table (columns are symbols)
     price_table = prices[list(symbols.values())].copy()
+    price_table = price_table.where(pd.notna(price_table), "-")
     
     # Forward-fill missing prices to avoid blanks
-    price_table.fillna(method="ffill", inplace=True)
+    price_table = price_table.ffill().bfill()
 
     # Format columns with currency
     new_price_columns = []
+    
+    def format_price(x, currency):
+        if pd.isna(x) or x == "-":
+            return "-"
+        if currency in ["USD", "SGD"]:
+            return f"${x:,.2f}"
+        return f"{x:,.2f}"
+
     for name, symbol in symbols.items():
         currency = FUND_CURRENCY.get(name, "$")
-        new_name = f"{name} ({currency})"
-        new_price_columns.append(new_name)
+
         price_table[symbol] = price_table[symbol].apply(
-            lambda x: f"${x:,.2f}" if currency in ["USD","SGD"] else f"{x:,.2f}"
+            lambda x, c=currency: format_price(x, c)
         )
-    price_table.columns = new_price_columns
+
+    price_table.columns = [
+        f"{name} ({FUND_CURRENCY.get(name, '$')})"
+        for name in symbols.keys()
+    ]
 
     # Cumulative returns
     return_table = returns[list(symbols.values())].copy()
@@ -282,7 +366,9 @@ with right_col:
     return_table.columns = [f"{name} Return (%)" for name in symbols.keys()]
     return_table = return_table.round(2)
     for col in return_table.columns:
-        return_table[col] = return_table[col].apply(lambda x: f"{x:.2f}%")
+        return_table[col] = return_table[col].apply(
+            lambda x: "-" if pd.isna(x) else f"{x:.2f}%"
+        )
 
     # Combine price + returns
     combined_table = pd.concat([price_table, return_table], axis=1)
