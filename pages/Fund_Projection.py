@@ -188,7 +188,6 @@ for selected_fund in selected_funds:
         fund_value += annual_premium
         yearly_contribution = annual_premium
         total_contributions += annual_premium
-        profit_base = fund_value - total_contributions
 
         bonus = 0
         yearly_charge = 0
@@ -222,6 +221,9 @@ for selected_fund in selected_funds:
             yearly_charge = transaction_fee + holding_fee + gst
 
             fund_value -= yearly_charge
+
+        # ---------------- PROFIT AFTER GROWTH ----------------
+        profit_base = fund_value - total_contributions
 
         # ---------------- STORE RESULTS ----------------
         results.append(fund_value)
