@@ -69,7 +69,7 @@ max_date = prices.index.max()
 
 hist_df = get_historical_prices()
 prices = pd.concat([hist_df, prices], axis=0)
-prices = prices[~prices.index.duplicated(keep="first")]
+prices = prices[~prices.index.duplicated(keep="last")]
 prices = prices.sort_index()
 
 # --- FILTER BY INCEPTION DATE PER FUND ---
@@ -362,6 +362,7 @@ with right_col:
 
     # Cumulative returns
     return_table = returns[list(symbols.values())].copy()
+    if not return_table.empty:
     return_table = return_table.ffill()
     return_table.columns = [f"{name} Return (%)" for name in symbols.keys()]
     return_table = return_table.round(2)
