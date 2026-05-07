@@ -361,5 +361,6 @@ with st.expander("Policy Mechanics", expanded=False):
         - Transaction Cost: {transaction_cost*100:.2f}%
         - Holding Cost: {holding_cost*100:.2f}%
         - GST: {gst_rate*100:.2f}%
-        - First Year Free: {"Yes" if first_year_free else "No"}
+        - First Year Transaction Override: {"Yes" if change_first_year_fee else "No"}
+        - First Year Transaction Cost: {first_year_transaction_cost*100:.2f}%
         """)
