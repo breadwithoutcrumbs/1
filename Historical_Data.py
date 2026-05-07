@@ -59,7 +59,6 @@ benchmark = st.sidebar.selectbox(
 # Combine safely (NO duplicates)
 all_selected = list(set(selected_funds + [benchmark]))
 symbols = {name: FUND_MAPPING[name] for name in all_selected}
-symbols = {name:FUND_MAPPING[name] for name in selected_funds + [benchmark]}
 prices = load_price_data(list(set(symbols.values())), START_DATE)
 
 # --- Time controls ---
@@ -127,9 +126,12 @@ prices[equity_cols] = prices[equity_cols].ffill()
 
 
 # --- SAFETY CHECK: Stop if no data ---
-if prices.empty:
+if prices.dropna(how="all").empty:
     st.error("❌ No price data available for the selected funds/dates.")
-    st.stop()  # Prevent further code from running
+    st.write("Symbols:", symbols)
+    st.write("Prices columns:", prices.columns.tolist())
+    st.write(prices.tail())
+    st.stop()
     
 base_price = prices.apply(
     lambda col: col.dropna().iloc[0] if col.dropna().shape[0] > 0 else None
