@@ -52,7 +52,7 @@ with st.sidebar.expander("Parameters", expanded=True):
         value=10000.0
     )
 
-# -------------------- NON-AIA FEES (kept separate but clean) --------------------
+# -------------------- NON-AIA FEES --------------------
 with st.sidebar.expander("Non-AIA Fees", expanded=False):
 
     st.caption("Applies only to Non-AIA funds")
@@ -65,19 +65,19 @@ with st.sidebar.expander("Non-AIA Fees", expanded=False):
     ) / 100
 
     change_first_year_fee = st.checkbox(
-    "Change First Year Transaction Fee",
-    value=False
-)
+        "Change First Year Transaction Fee",
+        value=False
+    )
 
-first_year_transaction_cost = transaction_cost
+    first_year_transaction_cost = transaction_cost
 
-if change_first_year_fee:
-    first_year_transaction_cost = st.number_input(
-        "First Year Transaction Cost (%)",
-        value=0.0,
-        step=0.01,
-        help="Overrides the standard transaction cost for Year 1 only."
-    ) / 100
+    if change_first_year_fee:
+        first_year_transaction_cost = st.number_input(
+            "First Year Transaction Cost (%)",
+            value=0.0,
+            step=0.01,
+            help="Overrides the standard transaction cost for Year 1 only."
+        ) / 100
 
     holding_cost = st.number_input(
         "Holding Cost (%)",
@@ -90,7 +90,7 @@ if change_first_year_fee:
         "GST (%)",
         value=9.0,
         step=0.1,
-        help="Goods & Service Tax are applied only on transaction and holding costs in accordance with IRAS regulations."
+        help="Goods & Service Tax are applied only on transaction and holding costs."
     ) / 100
 
 # -------------------- ADVANCED --------------------
