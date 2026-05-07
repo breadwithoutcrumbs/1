@@ -64,10 +64,20 @@ with st.sidebar.expander("Non-AIA Fees", expanded=False):
         help="Applied on annual contribution"
     ) / 100
 
-    first_year_free = st.checkbox(
-        "First Year Transaction Cost Free",
-        value=False
-    )
+    change_first_year_fee = st.checkbox(
+    "Change First Year Transaction Fee",
+    value=False
+)
+
+first_year_transaction_cost = transaction_cost
+
+if change_first_year_fee:
+    first_year_transaction_cost = st.number_input(
+        "First Year Transaction Cost (%)",
+        value=0.0,
+        step=0.01,
+        help="Overrides the standard transaction cost for Year 1 only."
+    ) / 100
 
     holding_cost = st.number_input(
         "Holding Cost (%)",
@@ -210,10 +220,12 @@ for selected_fund in selected_funds:
 
             fund_value *= (1 + cagr)
 
-            transaction_fee = annual_premium * transaction_cost
+            current_transaction_cost = transaction_cost
 
-            if first_year_free and year == 1:
-                transaction_fee = 0
+            if year == 1 and change_first_year_fee:
+                current_transaction_cost = first_year_transaction_cost
+
+            transaction_fee = annual_premium * current_transaction_cost
 
             holding_fee = fund_value * holding_cost
             gst = (transaction_fee + holding_fee) * gst_rate
