@@ -362,7 +362,7 @@ with right_col:
 
     # Cumulative returns
     return_table = returns[list(symbols.values())].copy()
-    return_table.fillna(method="ffill", inplace=True)
+    return_table = return_table.ffill()
     return_table.columns = [f"{name} Return (%)" for name in symbols.keys()]
     return_table = return_table.round(2)
     for col in return_table.columns:
